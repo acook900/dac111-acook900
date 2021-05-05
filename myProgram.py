@@ -10,26 +10,26 @@ os.environ["PROJ_LIB"] = "/Applications/Anaconda-Navigator.app"
 import sqlite3 as sl
 from mpl_toolkits.basemap import Basemap
 import matplotlib.pyplot as plt
+import pandas as pd
 
 FLIGHTS_DB = "/Users/ashleycook/Downloads/flights.db"
 
 def main():
-    #Holds connection between database so we can interact with database
+    
     connection = sl.connect(FLIGHTS_DB)
-    cursor = connection.cursor()
     
-    
-    coords = cursor.execute(
+    query = """
+    select cast(sa.longitude as float) as source_lon,
+    cast(sa.latitude as float) as source_lat,
+    cast(da.longitude as float) as dest_lon,
+    cast(da.latitude as float) as dest_lat
+    from routes
+    inner join airports sa on sa.id = routes.source_id
+    inner join airports da on da.id = routes.dest_id 
 """
-select cast(longitude as float), 
-cast(latitude as float)
-from airports;                        
-"""
-    ).fetchall()
-    
-    cursor.close()
+    routes = pd.read_sql_query(query, connection)
     connection.close()
-
+    
     myMap = Basemap(
         projection = 'merc',
         llcrnrlat = -80,
@@ -40,11 +40,16 @@ from airports;
         resolution = 'c')
     
     myMap.drawcoastlines()
-    myMap.drawmapboundary()
     
-    x,y = myMap([l[0] for l in coords],
-                [l[1] for l in coords])
-
-    myMap.scatter(x, y, 1, marker = 'o', color = 'red')
+    for name, row in routes[:3000].iterrows():
+        if abs(row["source_lon"] - row["dest_lon"]) < 90:
+            myMap.drawgreatcircle(row["source_lon"],
+                                  row["source_lat"],
+                                  row["dest_lon"],
+                                  row["dest_lat"],
+                                  linewidth = 1,
+                                  color = 'b')
+            
+ 
 
 main()
